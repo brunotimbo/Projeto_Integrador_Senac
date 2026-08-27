@@ -258,7 +258,6 @@ def buscar_ingredientes_por_nome(texto_digitado):
     conexao.close()
     return resultados
 
-
 def abrir_popup_adicionar_ingrediente_ficha():
     popup_adicionar_ingrediente_ficha = tk.Toplevel()
     popup_adicionar_ingrediente_ficha.title("Ingrediente na Ficha")
@@ -344,15 +343,11 @@ def abrir_popup_adicionar_ingrediente_ficha():
     entry_adicionar_unidade_medida_ficha = tk.Entry(popup_adicionar_ingrediente_ficha, width=30)
     entry_adicionar_unidade_medida_ficha.pack(pady=5)
 
-
-
-
 def abrir_popup_editar_ingrediente_ficha():
     pass
 
 def abrir_popup_excluir_ingrediente_ficha():
     pass
-
 
 def selecionar_imagem():
     global caminho_imagem
@@ -363,6 +358,147 @@ def selecionar_imagem():
     )
     if caminho_imagem:
         lbl_status.config(text=f"Selecionado: {caminho_imagem.split('/')[-1]}")
+
+
+def buscar_ingredientes(termo=""):
+  conexao = sqlite3.connect("ficha_tecnica.db")
+  cursor = conexao.cursor()
+
+  if termo == "":
+    # Busca todos os ingredientes em ordem alfabética no início
+    cursor.execute("SELECT ingrediente FROM ingredientes ORDER BY ingrediente")
+  else:
+    # Busca filtrada por termos digitados
+    cursor.execute(
+        "SELECT ingrediente FROM ingredientes WHERE ingrediente LIKE ? ORDER BY ingrediente",
+        (f"%{termo}%",),
+    )
+
+  resultados = cursor.fetchall()
+  conexao.close()
+
+  # Retorna uma lista limpa apenas com os textos
+  return [linha[0] for linha in resultados]
+
+
+def atualizar_lista(sugestoes):
+  # Limpa a lista antes de colocar novos dados
+  lista_sugestoes.delete(0, tk.END)
+
+  if sugestoes:
+    # Se encontrou ingredientes, adiciona normalmente
+    for item in sugestoes:
+      lista_sugestoes.insert(tk.END, item)
+  else:
+    # Se a busca veio vazia (Nenhum resultado), mostra o aviso
+    lista_sugestoes.insert(tk.END, 'Nenhum ingrediente encontrado')
+
+
+
+
+def ao_digitar(event):
+  if event.keysym in ("Up", "Down", "Return", "Escape"):
+    return
+
+  digitado = entrada_ingrediente.get()
+
+  # Se tiver 2 ou mais letras, filtra. Se tiver menos, mostra tudo de novo.
+  if len(digitado) >= 2:
+    sugestoes = buscar_ingredientes(digitado)
+    atualizar_lista(sugestoes)
+  else:
+    sugestoes_iniciais = buscar_ingredientes()
+    atualizar_lista(sugestoes_iniciais)
+
+def ao_selecionar(event):
+  if lista_sugestoes.curselection():
+    indice = lista_sugestoes.curselection()
+    escolha = lista_sugestoes.get(indice)
+
+    # Bloqueia a seleção caso o texto seja a mensagem de erro
+    if escolha == 'Nenhum ingrediente encontrado':
+      return
+
+    # Preenche o campo de texto se for um ingrediente válido
+    entrada_ingrediente.delete(0, tk.END)
+    entrada_ingrediente.insert(0, escolha)
+
+def navegar_lista(event):
+  # Permite descer para a lista usando a seta do teclado
+  if event.keysym == "Down" and lista_sugestoes.size() > 0:
+    lista_sugestoes.focus_set()
+    lista_sugestoes.selection_set(0)
+
+
+def popup_incluir_ingrediente_ficha():
+
+    global entrada_ingrediente, lista_sugestoes
+
+    popup_incluir_ingrediente_ficha = tk.Toplevel()
+    popup_incluir_ingrediente_ficha.title("Nova Ficha Técnica")
+    popup_incluir_ingrediente_ficha.geometry("300x700")
+    # Bloqueia a janela principal até fechar o pop-up
+    popup_incluir_ingrediente_ficha.grab_set()
+
+    # Rótulo
+    rotulo = tk.Label(janela, text="Digite ou selecione o ingrediente:")
+    rotulo.pack(pady=10)
+
+    # Campo de entrada de texto
+    entrada_ingrediente = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entrada_ingrediente.pack(pady=5)
+
+    # Frame para agrupar a lista e a barra de rolagem lado a lado
+    frame_lista = tk.Frame(popup_incluir_ingrediente_ficha)
+    frame_lista.pack(pady=5)
+
+    # Barra de Rolagem (Scrollbar)
+    barra_rolagem = tk.Scrollbar(frame_lista, orient=tk.VERTICAL)
+
+    # Lista de sugestões fixa na tela
+    lista_sugestoes = tk.Listbox(
+        frame_lista, width=28, height=8, yscrollcommand=barra_rolagem.set
+    )
+
+    # Configura a barra para rolar a lista de ingredientes
+    barra_rolagem.config(command=lista_sugestoes.yview)
+
+    # Posiciona a lista e a barra lado a lado dentro do Frame
+    lista_sugestoes.pack(side=tk.LEFT, fill=tk.BOTH)
+    barra_rolagem.pack(side=tk.RIGHT, fill=tk.Y)
+
+    # Carrega todos os ingredientes logo na abertura do programa
+    ingredientes_iniciais = buscar_ingredientes()
+    atualizar_lista(ingredientes_iniciais)
+
+    # Vinculação de Eventos (Binds)
+    entrada_ingrediente.bind("<KeyRelease>", ao_digitar)
+    entrada_ingrediente.bind("<Down>", navegar_lista)
+
+    # Eventos para clique simples, duplo clique ou Enter na lista
+    lista_sugestoes.bind("<<ListboxSelect>>", ao_selecionar)
+    lista_sugestoes.bind("<Double-Button-1>", ao_selecionar)
+    lista_sugestoes.bind("<Return>", ao_selecionar)
+
+    label_quantidade_comprada = tk.Label(popup_incluir_ingrediente_ficha, text="Quantidade comprada:")
+    label_quantidade_comprada.pack(pady=10)
+    entry_quantidade_comprada = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entry_quantidade_comprada.pack(pady=5)
+
+    label_valor_comprada = tk.Label(popup_incluir_ingrediente_ficha, text="Valor comprado:")
+    label_valor_comprada.pack(pady=10)
+    entry_valor_comprado = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entry_valor_comprado.pack(pady=5)
+
+    label_quantidade_usada = tk.Label(popup_incluir_ingrediente_ficha, text="Quantidade usada:")
+    label_quantidade_usada.pack(pady=10)
+    entry_quantidade_usada = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entry_quantidade_usada.pack(pady=5)
+
+    label_unidade_medida = tk.Label(popup_incluir_ingrediente_ficha, text="Unidade de medida:")
+    label_unidade_medida.pack(pady=10)
+    entry_unidade_medida = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entry_unidade_medida.pack(pady=5)
 
 # abre pop-up adicionar ingrediente
 def abrir_popup_adicionar_ficha():
@@ -406,21 +542,18 @@ def abrir_popup_adicionar_ficha():
 
         return entry
 
-    entry_adicionar_nome_preparo = criar_campo(frame_direita, "Nome do preparo:", 30)
-    entry_adicionar_profissional = criar_campo(frame_direita, "Profissional responsável:", 30)
-
     frame_popup_menu_tabela = tk.Frame(frame_popup, borderwidth=1, relief="raised")
-    frame_popup_menu_tabela.pack(fill="both", expand=True) 
+    frame_popup_menu_tabela.pack(fill="both", expand=True, anchor="center")
 
     # botões da tela ingredientes
-    botao_incluir_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Incluir Ingrediente", command=abrir_popup_adicionar_ingrediente_ficha)
-    botao_incluir_ingrediente_ficha.pack( padx=10, pady=5)
+    botao_retirar_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Retirar Ingrediente")
+    botao_retirar_ingrediente_ficha.pack(side= "right", padx=10, anchor="center", expand=True)
 
-    botao_incluir_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Incluir Ingrediente", command=abrir_popup_editar_ingrediente_ficha)
-    botao_incluir_ingrediente_ficha.pack( padx=10, pady=5)
+    botao_editar_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Editar Ingrediente")
+    botao_editar_ingrediente_ficha.pack(side= "right", padx=10, anchor="center", expand=True)
 
-    botao_retirar_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Retirar Ingrediente", command=tela_ficha)
-    botao_retirar_ingrediente_ficha.pack(padx=10, pady=5)
+    botao_incluir_ingrediente_ficha = tk.Button(frame_popup_menu_tabela, text="Incluir Ingrediente", command=popup_incluir_ingrediente_ficha)
+    botao_incluir_ingrediente_ficha.pack(side= "right", padx=10, anchor="center", expand=True)
 
     frame_popup_tabela = tk.Frame(frame_popup, borderwidth=1, relief="raised")
     frame_popup_tabela.pack(fill="both", expand=True) 
