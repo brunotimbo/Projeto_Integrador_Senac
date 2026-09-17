@@ -48,6 +48,21 @@ def conectar_banco_dados():
             nome_medida TEXT NOT NULL) 
     ''')
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS relacao_fichas_ingredientes (
+            id INTEGER PRIMARY KEY,
+            id_ficha INTEGER NOT NULL,
+            id_ingrediente INTEGER NOT NULL,
+            quantidade_comprada REAL,
+            valor_comprado REAL,
+            quantidade_usada REAL,
+            medida TEXT,
+            valor_gasto REAL,
+            FOREIGN KEY (id_ficha) REFERENCES fichas(id) ON DELETE CASCADE,
+            FOREIGN KEY (id_ingrediente) REFERENCES ingredientes(id)
+        )
+    """)
+
     conexao.commit()
     conexao.close()
 
@@ -457,7 +472,7 @@ def abrir_popup_adicionar_ingrediente_ficha():
             lista_sugestoes.pack_forget()
             return
     
-        resultados = buscar_ingredientes_por_nome(texto)
+        # resultados = buscar_ingredientes_por_nome(texto)
     
         lista_sugestoes.delete(0, "end")
     
@@ -669,6 +684,29 @@ def popup_incluir_ingrediente_ficha():
     botao_salvar = tk.Button(popup_incluir_ingrediente_ficha, text="Salvar", command=cadastrar_ficha)
     botao_salvar.pack(pady=15)
 
+# limpa a tabela ingredientess
+def limpar_tabela_fichas():
+    
+    for item in tabela_fichas.get_children():
+        tabela_fichas.delete(item)
+
+# atualiza a tabela ingredientes
+def atualizar_tabela_fichas():
+
+    limpar_tabela_fichas()
+
+    # Conecta ao banco de dados SQLite
+    conexao = sqlite3.connect("ficha_tecnica.db")
+    cursor = conexao.cursor()
+    cursor.execute("SELECT id, nome_preparo, nome_profissional FROM fichas")
+    linhas = cursor.fetchall()
+
+    # Insere os dados na Treeview
+    for linha in linhas:
+        tabela_fichas.insert("", "end", values=linha)
+
+    conexao.close()
+
 def cadastrar_ficha():
 # Remove espaços em branco do início e fim para evitar burlar com a barra de espaço
     preparo = entry_nome_preparo.get().strip()
@@ -771,7 +809,7 @@ def abrir_popup_adicionar_ficha():
 # inicial
 def tela_inicio():
 
-    global lbl_status
+    global lbl_status, tabela_fichas
 
     limpar_janela()
 
@@ -869,17 +907,7 @@ def tela_inicio():
     # exibe a tabela
     tabela_fichas.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-    conexao = sqlite3.connect("ficha_tecnica.db")
-    cursor = conexao.cursor()
-    cursor.execute("SELECT * FROM fichas")
-    resultado = cursor.fetchall()
-
-    for linha in resultado:
-        tabela_fichas.insert('', tk.END, values=linha)
-
-    # Seleciona as colunas id e ingrediente da tabela
-    cursor.execute("SELECT id, nome_preparo, nome_profissional FROM fichas")
-    conexao.close()
+    atualizar_tabela_fichas()
 
 # nova ficha
 def tela_nova_ficha():
