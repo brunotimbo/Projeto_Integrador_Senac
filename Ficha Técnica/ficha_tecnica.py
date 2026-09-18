@@ -447,6 +447,65 @@ def popup_editar_medida():
 
 ###     FUNÇÕES DE FICHA        ################################################################
 
+def adicionar_ingrediente_ficha():
+
+    ingrediente = entry_ingrediente.get().strip()
+    quantidade_comprada_str = entry_quantidade_comprada.get().strip()
+    valor_comprado_str = entry_valor_comprado.get().strip()
+    quantidade_usada_str = entry_quantidade_usada.get().strip()
+
+    # 2. Validação: Impedir campos vazios
+    if not (ingrediente and quantidade_comprada_str and valor_comprado_str and quantidade_usada_str):
+        messagebox.showwarning("Aviso", "Todos os campos devem ser preenchidos!")
+        return
+
+    # 3. Validação manual de números (substitui o try/except para evitar erros de digitação)
+    # Remove o ponto decimal temporariamente para checar se o resto são apenas dígitos
+    checar_qtd_c = quantidade_comprada_str.replace(".", "", 1)
+    checar_val_c = valor_comprado_str.replace(".", "", 1)
+    checar_qtd_u = quantidade_usada_str.replace(".", "", 1)
+
+    if not (checar_qtd_c.isdigit() and checar_val_c.isdigit() and checar_qtd_u.isdigit()):
+        messagebox.showerror(
+            "Erro de Digitação",
+            "Use apenas números e ponto (.) como separador decimal nos campos numéricos.",
+        )
+        return
+
+    # 4. Conversão segura para Float
+    quantidade_comprada = float(quantidade_comprada_str)
+    valor_comprado = float(valor_comprado_str)
+    quantidade_usada = float(quantidade_usada_str)
+
+    # Evitar divisão por zero
+    if quantidade_comprada == 0:
+        messagebox.showerror("Erro", "A quantidade comprada não pode ser zero.")
+        return
+
+    # 5. Cálculo do valor usado
+    valor_usado = (valor_comprado / quantidade_comprada) * quantidade_usada
+
+    # 6. Salvar no Banco de Dados
+    conexao = sqlite3.connect("ficha_tecnica.db")
+    cursor = conexao.cursor()
+    cursor.execute(
+        """
+        INSERT INTO relacao_fichas_ingredientes (ingrediente, quantidade_comprada, valor_comprado, quantidade_usada, medida, valor_gasto)
+        VALUES (?, ?, ?, ?, ?)
+    """,
+        (ingrediente, quantidade_comprada, valor_comprado, quantidade_usada, valor_usado),
+    )
+    conexao.commit()
+    conexao.close()
+
+    # 7. Mostrar popup de sucesso com o resultado
+    messagebox.showinfo(
+        "Sucesso",
+        f"Dados salvos com sucesso!\n\n"
+        f"Ingrediente: {ingrediente}\n"
+        f"Valor Usado Calculado: R$ {valor_usado:.2f}",
+    )
+
 def abrir_popup_adicionar_ingrediente_ficha():
     popup_adicionar_ingrediente_ficha = tk.Toplevel()
     popup_adicionar_ingrediente_ficha.title("Ingrediente na Ficha")
@@ -601,8 +660,8 @@ def ao_selecionar(event):
       return
 
     # Preenche o campo de texto se for um ingrediente válido
-    entrada_ingrediente.delete(0, tk.END)
-    entrada_ingrediente.insert(0, escolha)
+    entry_ingrediente.delete(0, tk.END)
+    entry_ingrediente.insert(0, escolha)
 
 def navegar_lista(event):
   # Permite descer para a lista usando a seta do teclado
@@ -612,21 +671,21 @@ def navegar_lista(event):
 
 def popup_incluir_ingrediente_ficha():
 
-    global entrada_ingrediente, lista_sugestoes
+    global entrada_ingrediente, lista_sugestoes, entry_ingrediente, entry_quantidade_comprada, entry_valor_comprado, entry_quantidade_usada, entry
 
     popup_incluir_ingrediente_ficha = tk.Toplevel()
-    popup_incluir_ingrediente_ficha.title("Nova Ficha Técnica")
+    popup_incluir_ingrediente_ficha.title("Ingrediente na Ficha")
     popup_incluir_ingrediente_ficha.geometry("300x700")
     # Bloqueia a janela principal até fechar o pop-up
     popup_incluir_ingrediente_ficha.grab_set()
 
     # Rótulo
-    rotulo = tk.Label(janela, text="Digite ou selecione o ingrediente:")
+    rotulo = tk.Label(janela, text="Selecione o ingrediente:")
     rotulo.pack(pady=10)
 
     # Campo de entrada de texto
-    entrada_ingrediente = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
-    entrada_ingrediente.pack(pady=5)
+    entry_ingrediente = tk.Entry(popup_incluir_ingrediente_ficha, width=30)
+    entry_ingrediente.pack(pady=5)
 
     # Frame para agrupar a lista e a barra de rolagem lado a lado
     frame_lista = tk.Frame(popup_incluir_ingrediente_ficha)
@@ -652,8 +711,8 @@ def popup_incluir_ingrediente_ficha():
     atualizar_lista(ingredientes_iniciais)
 
     # Vinculação de Eventos (Binds)
-    entrada_ingrediente.bind("<KeyRelease>", ao_digitar)
-    entrada_ingrediente.bind("<Down>", navegar_lista)
+    entry_ingrediente.bind("<KeyRelease>", ao_digitar)
+    entry_ingrediente.bind("<Down>", navegar_lista)
 
     # Eventos para clique simples, duplo clique ou Enter na lista
     lista_sugestoes.bind("<<ListboxSelect>>", ao_selecionar)
@@ -681,7 +740,7 @@ def popup_incluir_ingrediente_ficha():
     entry_unidade_medida.pack(pady=5)
 
 # Botão Salvar dentro do Pop-up
-    botao_salvar = tk.Button(popup_incluir_ingrediente_ficha, text="Salvar", command=cadastrar_ficha)
+    botao_salvar = tk.Button(popup_incluir_ingrediente_ficha, text="Salvar", command=adicionar_ingrediente_ficha)
     botao_salvar.pack(pady=15)
 
 # limpa a tabela ingredientess
